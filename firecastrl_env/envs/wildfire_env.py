@@ -67,9 +67,13 @@ class WildfireEnv(gym.Env):
         self._position_channels = self._build_position_channels()
         self._reset_state_variables()
 
+        # self._spark_grid_coord = (
+        #     int((60000 - 1) // self.cell_size),
+        #     int((40000 - 1) // self.cell_size),
+        # )
         self._spark_grid_coord = (
-            int((60000 - 1) // self.cell_size),
-            int((40000 - 1) // self.cell_size),
+            int((config.modelWidth / 2 - 1) // self.cell_size),
+            int((config.modelHeight / 2 - 1) // self.cell_size),
         )
         self._viewer_host = viewer_host
         self._viewer_port = viewer_port
@@ -236,7 +240,8 @@ class WildfireEnv(gym.Env):
         self._reset_state_variables()
         self.episode_count = getattr(self, "episode_count", 0) + 1
 
-        spark = Vector2(60000 - 1, 40000 - 1)
+        # spark = Vector2(60000 - 1, 40000 - 1)
+        spark = Vector2(config.modelWidth / 2 - 1, config.modelHeight / 2 - 1)
         grid_x = int(spark.x // self.cell_size)
         grid_y = int(spark.y // self.cell_size)
         self.cell_state.ignition_time[grid_y, grid_x] = 0.0
