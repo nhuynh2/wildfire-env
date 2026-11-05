@@ -350,6 +350,12 @@ class WildfireEnv(gym.Env):
             self._opened_3d_viewer = True
         return None
 
+    def wait_for_viewer(self, timeout: float = 30.0) -> bool:
+        """Block until a browser is connected to the 3D viewer (call after render()); False on timeout."""
+        if self.render_mode != "3d":
+            return False
+        return self._viewer_server.wait_for_client(timeout=timeout)
+
     def _build_render_base(self) -> np.ndarray:
         ignition = np.flipud(self.cell_state.ignition_time)
         fire_state = np.flipud(self.cell_state.fire_state)
@@ -359,8 +365,8 @@ class WildfireEnv(gym.Env):
         arr_normalized[np.isinf(arr_normalized)] = np.nan
         finite_vals = arr_normalized[np.isfinite(arr_normalized)]
 
-        if finite_vals.size > 0:
-            vmax = float(np.percentile(finite_vals, 95))
+        vmax = float(np.percentile(finite_vals, 95)) if finite_vals.size > 0 else 0.0
+        if vmax > 0:
             arr_normalized = np.nan_to_num(arr_normalized, nan=0.0, posinf=vmax, neginf=0.0)
             arr_normalized = np.clip(arr_normalized, 0, vmax) / vmax
         else:

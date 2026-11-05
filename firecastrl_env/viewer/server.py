@@ -2,6 +2,7 @@ import asyncio
 import json
 import mimetypes
 import threading
+import time
 from http import HTTPStatus
 from pathlib import Path
 from typing import Any, Optional
@@ -57,6 +58,15 @@ class ViewerServer:
         self._loop = None
         self._server = None
         self._clients.clear()
+
+    def wait_for_client(self, timeout: float = 30.0) -> bool:
+        """Block until a browser has connected to the websocket; returns False on timeout."""
+        deadline = time.monotonic() + timeout
+        while not self._clients:
+            if time.monotonic() >= deadline:
+                return False
+            time.sleep(0.1)
+        return True
 
     def publish_terrain(self, payload: dict[str, Any]) -> None:
         self.start()
