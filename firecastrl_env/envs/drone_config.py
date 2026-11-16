@@ -49,7 +49,10 @@ class DroneConfig:
 
     # --- mission ---
     low_battery_frac: float = 0.25
-    refill_radius: int = 1             
+    refill_radius: int = 1
+    # Drone deployed near the fire: base sits base_offset_cells west of FireCastRL's map-center spark
+    # (25 cells ~ 130 m, outside the sensor view, so the drone must still detect, approach and aim).
+    base_offset_cells: int = 25
     base_coord: Optional[tuple] = None
 
     # --- fire clock / burn ---
@@ -58,7 +61,8 @@ class DroneConfig:
 
     def __post_init__(self):
         if self.base_coord is None:
-            self.base_coord = (2, self.grid_h // 2)
+            spark_x = self.grid_w // 2 - 1  # FireCastRL lights the cell at the map center: (119, 79) on 240x160
+            self.base_coord = (spark_x - self.base_offset_cells, self.grid_h // 2)
 
     # ---------- derived scale ----------
     @property
