@@ -39,8 +39,15 @@ class DroneConfig:
     drop_hover_s: float = 2.0
     battery_scale: float = 1.0
 
+    # --- thermal IR sensor (fixed altitude; drone state is 2D) ---
+    # Enterprise radiometric thermal payloads (DJI Zenmuse H30T: 45.2 deg DFOV; Matrice 4T: ~45 deg DFOV),
+    # 5:4 sensor. 100 m AGL is a conservative altitude (FAA Part 107 ceiling is 400 ft ~ 122 m).
+    altitude_m: float = 100.0
+    thermal_dfov_deg: float = 45.0
+    sensor_aspect: tuple = (5, 4)
+    sensor_radius: Optional[int] = None  # cells; None -> derived from altitude/DFOV (= 6 at the defaults)
+
     # --- mission ---
-    sensor_radius: int = 12            # cells (stage 1)
     low_battery_frac: float = 0.25
     refill_radius: int = 1             
     base_coord: Optional[tuple] = None
@@ -77,6 +84,32 @@ class DroneConfig:
     def footprint(self) -> list[tuple[int, int]]:
         r = self.footprint_cells // 2
         return [(dx, dy) for dy in range(-r, r + 1) for dx in range(-r, r + 1)]
+
+    # ---------- thermal sensor ----------
+    @property
+    def sensor_footprint_m(self) -> tuple[float, float]:
+        """Ground footprint (width, height) in m of a nadir camera at altitude_m."""
+        aw, ah = self.sensor_aspect
+        diag = math.hypot(aw, ah)
+        half_diag = self.altitude_m * math.tan(math.radians(self.thermal_dfov_deg) / 2.0)
+        return 2.0 * half_diag * aw / diag, 2.0 * half_diag * ah / diag
+
+    @property
+    def sensor_radius_m(self) -> float:
+        """Radius of the disc with the same ground area as the camera footprint (agent has no heading)."""
+        w, h = self.sensor_footprint_m
+        return math.sqrt(w * h / math.pi)
+
+    @property
+    def sensor_radius_cells(self) -> int:
+        if self.sensor_radius is not None:
+            return int(self.sensor_radius)
+        return max(1, round(self.sensor_radius_m / self.cell_m))
+
+    def sensor_offsets(self) -> list[tuple[int, int]]:
+        """(dx, dy) offsets of the cells inside the sensor disc."""
+        r = self.sensor_radius_cells
+        return [(dx, dy) for dy in range(-r, r + 1) for dx in range(-r, r + 1) if dx * dx + dy * dy <= r * r]
 
     # ---------- battery ----------
     def mass_kg(self, loaded: bool) -> float:
@@ -138,6 +171,9 @@ class DroneConfig:
             f"endurance: loaded {self.endurance_min(True):.1f} min, empty {self.endurance_min(False):.1f} min",
             f"battery cost: loaded move {self.move_cost(True):.5f}, empty move {self.move_cost(False):.5f}, drop {self.drop_cost():.5f}",
             f"loaded moves to empty {1/self.move_cost(True):.0f}",
+            f"thermal sensor: {self.altitude_m:.0f} m above ground level, DFOV {self.thermal_dfov_deg:.1f} deg -> footprint "
+            f"{self.sensor_footprint_m[0]:.0f} x {self.sensor_footprint_m[1]:.0f} m, equal-area radius "
+            f"{self.sensor_radius_m:.1f} m -> {self.sensor_radius_cells} cells ({len(self.sensor_offsets())} cells in view)",
         ])
 
 
