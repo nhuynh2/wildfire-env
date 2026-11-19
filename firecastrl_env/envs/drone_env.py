@@ -4,12 +4,12 @@ Unchanged from the framework: Discrete(5) actions (0:+y 1:-y 2:-x 3:+x 4:drop), 
 its dynamics, and the step/reset flow.
 
 Added: rescaled environment configuration, one full-load retardant bomb (payload 1 -> 0), a 3x3-cell drop
-footprint, refill/recharge near base, a battery that move/drop/hover costs drain, and a thermal sensor disc
-(DroneConfig.sensor_radius_cells) that is the agent's only view of the fire.
+footprint, refill/recharge near base, a battery that move/drop/hover costs drain, and a thermal sensor square
+(DroneConfig.sensor_radius) that is the agent's only view of the fire.
 
 Observation (partial):
   local    : float32 (4, 2R+1, 2R+1) thermal view centered on the drone, rows = y, cols = x, channels
-             [burning, burnt, nonburnable, out_of_bounds]; cells outside the sensor disc are 0.
+             [burning, burnt, nonburnable, out_of_bounds]; the view is the full square sensor footprint.
   position : float32 (2,) [x/(W-1), y/(H-1)]
   battery  : float32 (1,) remaining battery fraction (1.0 = full; recharged at base)
   time     : float32 (1,) step/MAX_TIMESTEPS (lets the agent anticipate truncation)
@@ -54,14 +54,13 @@ class DroneWildfireEnv(WildfireEnv):
         self.max_spark_dist_cells = max_spark_dist_cells
         self.dcfg.apply_scale(config)  # mutate framework config BEFORE the base reads it
 
-        # sensor disc offsets (fixed for the episode)
-        self._r = self.dcfg.sensor_radius_cells
+        # sensor square offsets (fixed for the episode)
         offs = np.array(self.dcfg.sensor_offsets(), dtype=np.int32)
         self._sdx, self._sdy = offs[:, 0], offs[:, 1]
 
         super().__init__(**kwargs)
 
-        side = 2 * self._r + 1
+        side = 2 * self.dcfg.sensor_radius + 1
         self.observation_space = spaces.Dict(
             {
                 "local": spaces.Box(0.0, 1.0, shape=(len(LOCAL_CHANNELS), side, side), dtype=np.float32),
@@ -97,9 +96,9 @@ class DroneWildfireEnv(WildfireEnv):
 
     # --------------------------------- sensor ---------------------------------
     def _sense(self, x: int, y: int) -> np.ndarray:
-        """Thermal view: true fire state of the cells inside the sensor disc centered on (x, y)."""
+        """Thermal view: true fire state of the cells inside the square sensor footprint centered on (x, y)."""
         s = self.cell_state
-        r = self._r
+        r = self.dcfg.sensor_radius
         xs, ys = x + self._sdx, y + self._sdy
         inb = (xs >= 0) & (xs < s.width) & (ys >= 0) & (ys < s.height)
         view = np.zeros((len(LOCAL_CHANNELS), 2 * r + 1, 2 * r + 1), dtype=np.float32)
