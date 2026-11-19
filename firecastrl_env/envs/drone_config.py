@@ -34,9 +34,7 @@ class DroneConfig:
 
     # --- battery ---
     endurance_empty_min: float = 45.0
-    derate: float = 0.8              
-    hover_extra: float = 0.20
-    drop_hover_s: float = 2.0
+    derate: float = 0.8
     battery_scale: float = 1.0
 
     # --- thermal IR sensor (square, north-up; drone state is 2D) ---
@@ -44,8 +42,6 @@ class DroneConfig:
     sensor_radius: int = 6
 
     # --- mission ---
-    low_battery_frac: float = 0.25
-    refill_radius: int = 1
     # Drone deployed near the fire: base sits base_offset_cells west of FireCastRL's map-center spark
     # (25 cells ~ 130 m, outside the sensor view, so the drone must still detect, approach and aim).
     base_offset_cells: int = 25
@@ -105,12 +101,6 @@ class DroneConfig:
     def move_cost(self, loaded: bool) -> float:
         return self._frac_per_s(loaded) * self.dt_s
 
-    def drop_cost(self) -> float:
-        return self._frac_per_s(True) * (1.0 + self.hover_extra) * self.drop_hover_s
-
-    def hover_cost(self, loaded: bool) -> float:
-        return self._frac_per_s(loaded) * (1.0 + self.hover_extra) * self.dt_s
-
     # ---------- plumbing into the framework ----------
     def apply_scale(self, config) -> None:
         """Mutate the framework's config module BEFORE constructing the env.
@@ -149,7 +139,7 @@ class DroneConfig:
             f"episode: {self.max_steps} steps = {self.max_steps*self.minute_per_timestep:.1f} min",
             f"weight: loaded {self.mass_kg(True):.1f} kg, empty {self.mass_kg(False):.1f}",
             f"endurance: loaded {self.endurance_min(True):.1f} min, empty {self.endurance_min(False):.1f} min",
-            f"battery cost: loaded move {self.move_cost(True):.5f}, empty move {self.move_cost(False):.5f}, drop {self.drop_cost():.5f}",
+            f"battery cost: loaded move {self.move_cost(True):.5f}, empty move {self.move_cost(False):.5f}",
             f"loaded moves to empty {1/self.move_cost(True):.0f}",
             f"thermal sensor: {2*self.sensor_radius+1}x{2*self.sensor_radius+1} cells = "
             f"{(2*self.sensor_radius+1)*self.cell_m:.0f} m square ({len(self.sensor_offsets())} cells in view)",

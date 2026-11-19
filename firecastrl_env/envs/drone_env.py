@@ -4,19 +4,18 @@ Unchanged from the framework: Discrete(5) actions (0:+y 1:-y 2:-x 3:+x 4:drop), 
 its dynamics, and the step/reset flow.
 
 Added: rescaled environment configuration, one full-load retardant bomb (payload 1 -> 0), a 3x3-cell drop
-footprint, refill/recharge near base, a battery that move/drop/hover costs drain, and a thermal sensor square
+footprint, a battery that move cost drains, and a thermal sensor square
 (DroneConfig.sensor_radius) that is the agent's only view of the fire.
 
 Observation (partial):
   local    : float32 (4, 2R+1, 2R+1) thermal view centered on the drone, rows = y, cols = x, channels
              [burning, burnt, nonburnable, out_of_bounds]; the view is the full square sensor footprint.
   position : float32 (2,) [x/(W-1), y/(H-1)]
-  battery  : float32 (1,) remaining battery fraction (1.0 = full; recharged at base)
+  battery  : float32 (1,) remaining battery fraction (1.0 = full)
   time     : float32 (1,) step/MAX_TIMESTEPS (lets the agent anticipate truncation)
-  (payload is not observed: it is always 1 while the agent acts, since the release ends the episode)
 
 Drop interlock: the payload is released only if a burning cell is inside the sensor view. Otherwise action 4
-is a hover (hover battery cost, no release, no termination). A release always ends the episode.
+is a hover (no release, no termination). A release always ends the episode.
 """
 from __future__ import annotations
 
@@ -80,7 +79,6 @@ class DroneWildfireEnv(WildfireEnv):
         self._dropped = False
         self._released_now = False
         self._interlocked_now = False
-        self._near_base = True
         self._fire_in_view = False
         self._reward_terms: dict[str, float] = {}
         self._reset_episode_tracking()
@@ -88,11 +86,7 @@ class DroneWildfireEnv(WildfireEnv):
     def _reset_episode_tracking(self) -> None:
         self._first_detect_step: Optional[int] = None
         self._release_step: Optional[int] = None
-        self._ep = {"quenched": 0, "released": 0, "interlocked": 0, "refills": 0}
-
-    def _is_near_base(self, x: int, y: int) -> bool:
-        bx, by = self.dcfg.base_coord
-        return max(abs(x - bx), abs(y - by)) <= self.dcfg.refill_radius
+        self._ep = {"quenched": 0, "released": 0, "interlocked": 0}
 
     # --------------------------------- sensor ---------------------------------
     def _sense(self, x: int, y: int) -> np.ndarray:
@@ -141,7 +135,7 @@ class DroneWildfireEnv(WildfireEnv):
         quenched = 0
         self._released_now = False
         self._interlocked_now = False
-
+        cost = 0.0
         if action == 4:
             hx, hy, _ = super().apply_action(-1)  # no move; base increments step_count
             self.state["last_action"] = 4
@@ -152,12 +146,10 @@ class DroneWildfireEnv(WildfireEnv):
                 self.payload -= 1
                 self._release_step = self.step_count
                 self._ep["released"] += 1
-                cost = d.drop_cost()
             else:
                 # interlock (no thermal target in view) or empty payload: the drone just hovers
                 self._interlocked_now = loaded
                 self._ep["interlocked"] += int(loaded)
-                cost = d.hover_cost(loaded)
         else:
             hx, hy, quenched = super().apply_action(action)
             cost = d.move_cost(loaded)
@@ -167,14 +159,7 @@ class DroneWildfireEnv(WildfireEnv):
         if self.battery_enabled:
             self.battery = max(0.0, self.battery - cost)
 
-        self._near_base = self._is_near_base(hx, hy)
-        if self._near_base:
-            if self.payload < d.payload_drops:
-                self._ep["refills"] += 1
-            self.payload = d.payload_drops
-            if self.battery_enabled:
-                self.battery = 1.0
-        elif self.battery_enabled and self.battery <= 0.0:
+        if self.battery_enabled and self.battery <= 0.0:
             self._crashed = True
         return hx, hy, quenched
 
@@ -257,7 +242,6 @@ class DroneWildfireEnv(WildfireEnv):
             interlocked=self._interlocked_now,
             fire_in_view=self._fire_in_view,
             crashed=self._crashed,
-            near_base=self._near_base,
             reward_terms=dict(self._reward_terms),
         )
         if terminated or truncated:

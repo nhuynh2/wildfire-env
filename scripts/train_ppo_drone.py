@@ -10,6 +10,7 @@ agent are recorded (top-down rgb_array render) to videos/ppo_drone_ep{N}.mp4, as
 import argparse
 import pathlib
 import sys
+from typing import Any, cast
 
 import gymnasium as gym
 import imageio.v2 as imageio
@@ -36,7 +37,7 @@ def evaluate(model, n_episodes: int, fps: int) -> None:
     results = []
     for ep in range(n_episodes):
         path = VIDEO_DIR / f"ppo_drone_ep{ep}.mp4"
-        with imageio.get_writer(path, fps=fps, macro_block_size=8) as video:
+        with cast(Any, imageio.get_writer(path, fps=fps, macro_block_size=8)) as video:
             obs, info = env.reset(seed=ep)
             video.append_data(env.render())
             done = truncated = False
@@ -66,8 +67,8 @@ def evaluate(model, n_episodes: int, fps: int) -> None:
 
 def main() -> None:
     p = argparse.ArgumentParser()
-    p.add_argument("--timesteps", type=int, default=100000)
-    p.add_argument("--n-envs", type=int, default=4, help="parallel envs (only speeds up training)")
+    p.add_argument("--timesteps", type=int, default=300000)
+    p.add_argument("--n-envs", type=int, default=2, help="parallel envs (only speeds up training)")
     p.add_argument("--device", default="mps", help="mps or cpu")
     p.add_argument("--episodes", type=int, default=3, help="episodes recorded after training (one video each)")
     p.add_argument("--fps", type=int, default=20, help="playback speed of the videos (env steps per second)")
