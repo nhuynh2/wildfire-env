@@ -15,6 +15,7 @@ from typing import Any, cast
 import gymnasium as gym
 import imageio.v2 as imageio
 import numpy as np
+import pdb
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
@@ -67,7 +68,7 @@ def evaluate(model, n_episodes: int, fps: int) -> None:
 
 def main() -> None:
     p = argparse.ArgumentParser()
-    p.add_argument("--timesteps", type=int, default=300000)
+    p.add_argument("--timesteps", type=int, default=100000)
     p.add_argument("--n-envs", type=int, default=2, help="parallel envs (only speeds up training)")
     p.add_argument("--device", default="mps", help="mps or cpu")
     p.add_argument("--episodes", type=int, default=3, help="episodes recorded after training (one video each)")
@@ -76,6 +77,12 @@ def main() -> None:
 
     check_env(gym.make(ENV_ID).unwrapped, warn=False)
     env = make_vec_env(ENV_ID, n_envs=args.n_envs, vec_env_cls=SubprocVecEnv)
+    print(f"action space: {env.action_space}")
+    print("observation space:")
+    for key, space in cast(gym.spaces.Dict, env.observation_space).spaces.items():
+        print(f"  {key}: {space}")
+
+    pdb.set_trace()  # uncomment to debug the training loop
     model = PPO("MultiInputPolicy", env, verbose=1, device=args.device)
     model.learn(total_timesteps=args.timesteps)
     model.save(MODEL_PATH)

@@ -3,16 +3,10 @@
 Unchanged from the framework: Discrete(5) actions (0:+y 1:-y 2:-x 3:+x 4:drop), the fire engine and
 its dynamics, and the step/reset flow.
 
-Added: rescaled environment configuration, one full-load retardant bomb (payload 1 -> 0), a 3x3-cell drop
-footprint, a battery that move cost drains, and a thermal sensor square
-(DroneConfig.sensor_radius) that is the agent's only view of the fire.
-
 Observation (partial):
   local    : float32 (4, 2R+1, 2R+1) thermal view centered on the drone, rows = y, cols = x, channels
              [burning, burnt, nonburnable, out_of_bounds]; the view is the full square sensor footprint.
   position : float32 (2,) [x/(W-1), y/(H-1)]
-  battery  : float32 (1,) remaining battery fraction (1.0 = full)
-  time     : float32 (1,) step/MAX_TIMESTEPS (lets the agent anticipate truncation)
 
 Drop interlock: the payload is released only if a burning cell is inside the sensor view. Otherwise action 4
 is a hover (no release, no termination). A release always ends the episode.
@@ -26,7 +20,8 @@ import numpy as np
 from gymnasium import spaces
 
 from . import config
-from .drone_config import DroneConfig
+# from .drone_config import DroneConfig
+from .drone_config_2 import DroneConfig2 as DroneConfig
 from .drone_reward import RewardCoeffs, drone_reward
 from .environment.enums import FireState
 from .wildfire_env import WildfireEnv
@@ -39,19 +34,11 @@ class DroneWildfireEnv(WildfireEnv):
         self,
         drone_cfg: Optional[DroneConfig] = None,
         reward_coeffs: Optional[RewardCoeffs] = None,
-        battery_enabled: bool = True,
-        random_spark: bool = False,
-        min_spark_dist_cells: int = 30,
-        max_spark_dist_cells: Optional[int] = None,
         **kwargs,
     ):
         self.dcfg = drone_cfg or DroneConfig()
         self.rcoef = reward_coeffs or RewardCoeffs()
-        self.battery_enabled = battery_enabled
-        self.random_spark = random_spark
-        self.min_spark_dist_cells = min_spark_dist_cells
-        self.max_spark_dist_cells = max_spark_dist_cells
-        self.dcfg.apply_scale(config)  # mutate framework config BEFORE the base reads it
+        self.dcfg.apply_scale(config)
 
         # sensor square offsets (fixed for the episode)
         offs = np.array(self.dcfg.sensor_offsets(), dtype=np.int32)
@@ -64,8 +51,6 @@ class DroneWildfireEnv(WildfireEnv):
             {
                 "local": spaces.Box(0.0, 1.0, shape=(len(LOCAL_CHANNELS), side, side), dtype=np.float32),
                 "position": spaces.Box(0.0, 1.0, shape=(2,), dtype=np.float32),
-                "battery": spaces.Box(0.0, 1.0, shape=(1,), dtype=np.float32),
-                "time": spaces.Box(0.0, 1.0, shape=(1,), dtype=np.float32),
             }
         )
 
@@ -73,7 +58,6 @@ class DroneWildfireEnv(WildfireEnv):
     def _reset_state_variables(self) -> None:
         super()._reset_state_variables()
         self.state["helicopter_coord"] = np.array(self.dcfg.base_coord, dtype=np.int32)
-        self.battery = 1.0
         self.payload = self.dcfg.payload_drops
         self._crashed = False
         self._dropped = False
@@ -137,7 +121,7 @@ class DroneWildfireEnv(WildfireEnv):
         self._interlocked_now = False
         cost = 0.0
         if action == 4:
-            hx, hy, _ = super().apply_action(-1)  # no move; base increments step_count
+            hx, hy, _ = super().apply_action(-1)
             self.state["last_action"] = 4
             if loaded and self._burning_in_view(hx, hy):
                 quenched = self._drop(hx, hy)
@@ -151,16 +135,10 @@ class DroneWildfireEnv(WildfireEnv):
                 self._interlocked_now = loaded
                 self._ep["interlocked"] += int(loaded)
         else:
-            hx, hy, quenched = super().apply_action(action)
-            cost = d.move_cost(loaded)
+            hx, hy, _ = super().apply_action(action)
 
         self._ep["quenched"] += quenched
 
-        if self.battery_enabled:
-            self.battery = max(0.0, self.battery - cost)
-
-        if self.battery_enabled and self.battery <= 0.0:
-            self._crashed = True
         return hx, hy, quenched
 
     # --------------------------------- reward ---------------------------------
@@ -170,7 +148,6 @@ class DroneWildfireEnv(WildfireEnv):
             quenched=extinguished_by_helitack,
             released=self._released_now,
             crashed=self._crashed,
-            battery=self.battery,
         )
         return reward
 
@@ -182,61 +159,25 @@ class DroneWildfireEnv(WildfireEnv):
         if self._fire_in_view and self._first_detect_step is None:
             self._first_detect_step = self.step_count
         return {
-            "local": local,
-            "position": np.array([hx / max(1, self.gridWidth - 1), hy / max(1, self.gridHeight - 1)], dtype=np.float32),
-            "battery": np.array([self.battery], dtype=np.float32),
-            "time": np.array([min(1.0, self.step_count / config.MAX_TIMESTEPS)], dtype=np.float32),
+            "local": local, # tracks the fire state of the cells inside the square sensor footprint centered on the drone
+            "position": np.array([hx / max(1, self.gridWidth - 1), hy / max(1, self.gridHeight - 1)], dtype=np.float32), # normalized position
         }
 
     # --------------------------------- reset/step ---------------------------------
     def reset(self, *, seed: Optional[int] = None, options: Optional[dict[str, Any]] = None):
         if seed is not None:
             random.seed(seed)  # the fire engine uses Python's random, which the base does not seed
-        _, info = super().reset(seed=seed, options=options)
-
-        if self.random_spark:
-            self._move_spark()
-            self._publish_viewer_state()
         self._reset_episode_tracking()
-        sx, sy = self._spark_grid_coord
-        bx, by = self.dcfg.base_coord
-        info["spark_coord"] = (sx, sy)
-        info["spark_dist_cells"] = float(np.hypot(sx - bx, sy - by))
-        return self._build_observation(0), info
+        return super().reset(seed=seed, options=options)
 
     def _publish_viewer_state(self, *, terminated: bool = False, truncated: bool = False, publish_terrain: bool = False) -> None:
         terminated = terminated or self._crashed or self._dropped
         super()._publish_viewer_state(terminated=terminated, truncated=truncated, publish_terrain=publish_terrain)
 
-    def _move_spark(self) -> None:
-        """Randomise the ignition cell (initial condition only; fire dynamics untouched)."""
-        s = self.cell_state
-        # the base reset() always lights the center cell; _spark_grid_coord may hold last episode's spark
-        cx = int((config.modelWidth / 2 - 1) // self.cell_size)
-        cy = int((config.modelHeight / 2 - 1) // self.cell_size)
-        s.ignition_time[cy, cx] = np.inf
-        bx, by = self.dcfg.base_coord
-        ys, xs = np.nonzero(~s.is_nonburnable)
-        dist = np.hypot(xs - bx, ys - by)
-        ok = dist >= self.min_spark_dist_cells
-        if self.max_spark_dist_cells is not None:
-            ok &= dist <= self.max_spark_dist_cells
-        margin = 3
-        ok &= (xs >= margin) & (xs < s.width - margin) & (ys >= margin) & (ys < s.height - margin)
-        xs, ys = xs[ok], ys[ok]
-        if len(xs) == 0:
-            raise ValueError(
-                f"no burnable spark cell with {self.min_spark_dist_cells} <= dist <= {self.max_spark_dist_cells}"
-            )
-        i = int(self.np_random.integers(len(xs)))
-        self._spark_grid_coord = (int(xs[i]), int(ys[i]))
-        s.ignition_time[self._spark_grid_coord[1], self._spark_grid_coord[0]] = 0.0
-
     def step(self, action: int):
         obs, reward, terminated, truncated, info = super().step(action)
         terminated = bool(terminated or self._crashed or self._dropped)
         info.update(
-            battery=self.battery,
             payload=self.payload,
             released=self._released_now,
             interlocked=self._interlocked_now,
