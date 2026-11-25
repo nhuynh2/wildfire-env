@@ -50,7 +50,7 @@ class DroneConfig2:
 
     # --- mission ---
     # Base sits base_offset_cells west of the framework's map-center spark.
-    base_offset_cells: int = 25
+    base_offset_cells: int = 75
     base_coord: Optional[tuple] = None
 
     def __post_init__(self):
@@ -81,7 +81,7 @@ class DroneConfig2:
 
     # ---------- plumbing into the framework ----------
     def apply_scale(self, config) -> None:
-        """Keep the framework's scale. Only the keys DroneConfig (v1) changes are reset; others are left as set."""
+        """Keep the framework's scale. Apply the drone's drop area."""
         for key, value in _framework_defaults(config).items():
             setattr(config, key, value)
         config.helitackDropRadius = self.drop_radius_cells * config.cellSize

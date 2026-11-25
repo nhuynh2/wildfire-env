@@ -31,8 +31,8 @@ class DroneWildfireEnv(WildfireEnv):
         stage: str = "eval",
         max_steps: Optional[int] = None,
         randomize_spawn: bool = True,
-        min_spawn_dist: float = 25.0,
-        max_spawn_dist: float = 75.0,
+        min_spawn_dist: float = 45.0,
+        max_spawn_dist: float = 60.0,
         min_pre_ticks: int = 10,
         max_pre_ticks: int = 50,
         **kwargs,
@@ -239,10 +239,10 @@ class DroneWildfireEnv(WildfireEnv):
                 sx, sy = self._spark_grid_coord
                 r = self.dcfg.sensor_radius
                 for _ in range(50):
-                    angle = random.uniform(0.0, 2.0 * math.pi)
-                    dist = random.uniform(self.min_spawn_dist, self.max_spawn_dist)
-                    dx = int(np.clip(sx + dist * math.cos(angle), 5, self.gridWidth - 6))
-                    dy = int(np.clip(sy + dist * math.sin(angle), 5, self.gridHeight - 6))
+                    angle = random.uniform(0.0, 2.0 * math.pi)                              # random direction
+                    dist = random.uniform(self.min_spawn_dist, self.max_spawn_dist)         # random distance from the fire
+                    dx = int(np.clip(sx + dist * math.cos(angle), 1, self.gridWidth - 2))   # step that far in that direction,
+                    dy = int(np.clip(sy + dist * math.sin(angle), 1, self.gridHeight - 2))  # clipped to the grid
                     if abs(dx - sx) > r or abs(dy - sy) > r:
                         self.state["helicopter_coord"] = np.array([dx, dy], dtype=np.int32)
                         break
@@ -322,18 +322,18 @@ class DroneWildfireEnv(WildfireEnv):
         )
         if terminated or truncated:
             burning, burnt = self._get_current_fire_stats()
-            total = self._ep["quenched"] + burnt
+            drop_capacity = len(self.dcfg.footprint()) * self.dcfg.payload_drops  # 13 cells per retardant drop
             released = self._ep["released"] > 0
             info["episode_metrics"] = {
                 **self._ep,
-                "success": released and self._ep["quenched"] > 0,
+                "is_success": released and self._ep["quenched"] > 0,
                 "wasted_release": released and self._ep["quenched"] == 0,
                 "detected": self._first_detect_step is not None,
                 "steps_to_detection": self._first_detect_step,
                 "steps_to_release": self._release_step,
                 "cells_burnt": burnt,
                 "cells_burning": burning,
-                "suppression_efficiency": self._ep["quenched"] / total if total else 0.0,
+                "suppression_efficiency": self._ep["quenched"] / drop_capacity,
                 "steps": self.step_count,
             }
         return obs, reward, terminated, truncated, info

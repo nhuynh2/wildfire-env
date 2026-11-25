@@ -24,6 +24,8 @@ dependencies = [
   "stable-baselines3>=2.7.1",
   "tensorboard>=2.21.0",
   "tensorflow>=2.7.2",
+  "imageio>=2.37.2",
+  "imageio-ffmpeg>=0.6.0",
 ]
 
 [tool.hatch.build.targets.wheel]
