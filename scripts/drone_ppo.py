@@ -49,7 +49,7 @@ def evaluate(model, n_episodes: int, fps: int) -> None:
         m = info["episode_metrics"]
         results.append(m)
         print(f"episode {ep}: success={m['success']} detected_at={m['steps_to_detection']} "
-              f"released_at={m['steps_to_release']} crashed={m['crashed']} cells_burnt={m['cells_burnt']}")
+              f"released_at={m['steps_to_release']}cells_burnt={m['cells_burnt']}")
         print(f"saved {path}")
     env.close()
 
@@ -62,17 +62,18 @@ def evaluate(model, n_episodes: int, fps: int) -> None:
 
     print(f"\nsuccess rate {rate('success'):.2f} | detection rate {rate('detected'):.2f} | "
           f"steps to detection {avg('steps_to_detection'):.0f} | steps to release {avg('steps_to_release'):.0f}")
-    print(f"wasted-release rate {rate('wasted_release'):.2f} | crash rate {rate('crashed'):.2f} | "
+    print(f"wasted-release rate {rate('wasted_release'):.2f} | "
           f"cells burnt {avg('cells_burnt'):.1f} | suppression efficiency {avg('suppression_efficiency'):.2f}")
 
 
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--timesteps", type=int, default=100000)
-    p.add_argument("--n-envs", type=int, default=2, help="parallel envs (only speeds up training)")
+    p.add_argument("--n-envs", type=int, default=1, help="parallel envs (only speeds up training)")
     p.add_argument("--device", default="mps", help="mps or cpu")
     p.add_argument("--episodes", type=int, default=3, help="episodes recorded after training (one video each)")
     p.add_argument("--fps", type=int, default=20, help="playback speed of the videos (env steps per second)")
+    p.add_argument("--seed", type=int, default=42, help="random seed for reproducibility")
     args = p.parse_args()
 
     check_env(gym.make(ENV_ID).unwrapped, warn=False)
@@ -81,16 +82,16 @@ def main() -> None:
     print("observation space:")
     for key, space in cast(gym.spaces.Dict, env.observation_space).spaces.items():
         print(f"  {key}: {space}")
+    
+    # pdb.set_trace()  # uncomment to debug the training loop
+    model = PPO("MultiInputPolicy", env, verbose=1, device=args.device, seed=args.seed, policy_kwargs={"normalize_images": False})
+    # model.learn(total_timesteps=args.timesteps)
+    # model.save(MODEL_PATH)
+    # env.close()
+    # print(f"saved {MODEL_PATH}.zip")
 
-    pdb.set_trace()  # uncomment to debug the training loop
-    model = PPO("MultiInputPolicy", env, verbose=1, device=args.device)
-    model.learn(total_timesteps=args.timesteps)
-    model.save(MODEL_PATH)
-    env.close()
-    print(f"saved {MODEL_PATH}.zip")
-
-    model = PPO.load(MODEL_PATH, device=args.device)
-    evaluate(model, args.episodes, args.fps)
+    # model = PPO.load(MODEL_PATH, device=args.device)
+    # evaluate(model, args.episodes, args.fps)
 
 
 if __name__ == "__main__":
