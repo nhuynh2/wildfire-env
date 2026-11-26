@@ -2,7 +2,7 @@
 
 A drone firefighting environment, `firecastrl/Drone-env0`, built on top of [FireCastRL](https://github.com/aisystems-lab/wildfire-env). A single MaskablePPO policy is trained in two phases: Task 1 (detect the fire), then Task 2 (drop retardant on it), and is evaluated on the full mission.
 
-For installation, the fire simulator, and the original helicopter environment, see the framework's [README](../README.md).
+For installation, the fire simulator, and the original helicopter environment, see the framework's [README](https://github.com/nhuynh2/wildfire-env/blob/1fa1cc84da2de517e6c406f580422b8abb75787b/README.md).
 
 ## The task
 
