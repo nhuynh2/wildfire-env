@@ -31,8 +31,8 @@ class DroneWildfireEnv(WildfireEnv):
         stage: str = "eval",
         max_steps: Optional[int] = None,
         randomize_spawn: bool = True,
-        min_spawn_dist: float = 45.0,
-        max_spawn_dist: float = 60.0,
+        min_spawn_dist: float = 55.0,
+        max_spawn_dist: float = 75.0,
         min_pre_ticks: int = 10,
         max_pre_ticks: int = 50,
         **kwargs,
@@ -80,7 +80,6 @@ class DroneWildfireEnv(WildfireEnv):
         super()._reset_state_variables()
         self.state["helicopter_coord"] = np.array(self.dcfg.base_coord, dtype=np.int32)
         self.payload = self.dcfg.payload_drops
-        self._dropped = False
         self._released_now = False
         self._interlocked_now = False
         self._fire_in_view = False
@@ -165,7 +164,6 @@ class DroneWildfireEnv(WildfireEnv):
             if loaded and self._burning_in_view(hx, hy):
                 quenched = self._drop(hx, hy)
                 self._released_now = True
-                self._dropped = True
                 self.payload -= 1
                 self._release_step = self.step_count
                 self._ep["released"] += 1
@@ -254,8 +252,8 @@ class DroneWildfireEnv(WildfireEnv):
             pre_ticks = int(opts.get("pre_ticks", random.randint(self.min_pre_ticks, self.max_pre_ticks)))
             for _ in range(pre_ticks):
                 self.tick(self._step_delta)
-            if "drone_coord" in opts:
-                dx, dy = opts["drone_coord"]
+            if "base_coord" in opts:
+                dx, dy = opts["base_coord"]
                 self.state["helicopter_coord"] = np.array(
                     [np.clip(int(dx), 0, self.gridWidth - 1), np.clip(int(dy), 0, self.gridHeight - 1)],
                     dtype=np.int32,
@@ -277,13 +275,13 @@ class DroneWildfireEnv(WildfireEnv):
             pre_ticks = int(opts.get("pre_ticks", 0))
             for _ in range(pre_ticks):
                 self.tick(self._step_delta)
-            if "drone_coord" in opts:
-                dx, dy = opts["drone_coord"]
+            if "base_coord" in opts:
+                dx, dy = opts["base_coord"]
                 self.state["helicopter_coord"] = np.array(
                     [np.clip(int(dx), 0, self.gridWidth - 1), np.clip(int(dy), 0, self.gridHeight - 1)],
                     dtype=np.int32,
                 )
-            if pre_ticks > 0 or "drone_coord" in opts:
+            if pre_ticks > 0 or "base_coord" in opts:
                 obs = self._build_observation(0)
 
         return obs, info
@@ -295,7 +293,7 @@ class DroneWildfireEnv(WildfireEnv):
         truncated: bool = False,
         publish_terrain: bool = False,
     ) -> None:
-        terminated = terminated or self._dropped
+        terminated = terminated or self._released_now
         super()._publish_viewer_state(terminated=terminated, truncated=truncated, publish_terrain=publish_terrain)
 
     def step(self, action: int):
@@ -311,7 +309,7 @@ class DroneWildfireEnv(WildfireEnv):
             elif self.step_count >= self.max_steps and not terminated:
                 truncated = True
         else:
-            terminated = bool(terminated or self._dropped)
+            terminated = bool(terminated or self._released_now)
 
         info.update(
             payload=self.payload,

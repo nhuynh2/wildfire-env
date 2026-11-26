@@ -168,7 +168,7 @@ def main():
     # MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
     # model.save(MODEL_PATH)
     loaded = MaskablePPO.load(MODEL_PATH, device=args.device)
-    # evaluate(loaded, n_episodes=5, randomize_spawn=False)
+    # evaluate(loaded, n_episodes=5, randomize_spawn=True)
     evaluate(loaded, n_episodes=1, randomize_spawn=False, base_coord=(15, 25))
     # evaluate(loaded, n_episodes=1, randomize_spawn=False, base_coord=(239, 159))
     # evaluate(loaded, n_episodes=1, randomize_spawn=False, base_coord=(0, 159))

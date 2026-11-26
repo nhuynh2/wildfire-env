@@ -4,9 +4,9 @@ from dataclasses import dataclass
 @dataclass
 class RewardCoeffs:
     """
-    Task 1 max single-step reward: 10.0 (detect) + 0.0615 (explore) - 0.05 (step) = +10.01
-    Task 2 max single-step reward: 2.0 (hit) + 13.0 (all 13 cells quenched) - 0.05 (step) = +14.95
-    Min single-step reward: -2.0 (wasted) - 0.05 (step) = -2.05 
+    Task 1 max single-step reward: 10.0 (detect) + 0.0615 (explore) - 0.01 (step) = +10.01
+    Task 2 max single-step reward: 2.0 (hit) + 13.0 (all 13 cells quenched) - 0.01 (step) = +14.95
+    Min single-step reward: -2.0 (wasted) - 0.01 (step) = -2.01 
     """
 
     # --- Base eval fallback & clipping ---
