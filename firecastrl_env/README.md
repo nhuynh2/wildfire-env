@@ -38,7 +38,7 @@ Every episode starts the same way. The fire ignites where FireCastRL ignites it,
 | | |
 | --- | --- |
 | **Actions** | `Discrete(5)`: 0 = +y, 1 = −y, 2 = −x, 3 = +x (each move is 3 cells), 4 = drop |
-| **Observation** | `local`: 4×13×13 thermal view centered on the drone (burning, burnt, nonburnable, off-map). `position`: x, y scaled to 0–1. `battery`: 0–1. `time`: step / 2000 |
+| **Observation** | `local`: 4×41×41 thermal view centered on the drone (burning, burnt, nonburnable, off-map). `position`: x, y scaled to 0–1. `time`: step / 2000 |
 | **Sensor** | Radius 6 cells (≈33 m): a 45° thermal camera at 100 m altitude |
 | **Drop** | Released only if a burning cell is in the camera view; otherwise the drone just hovers. A release covers 3×3 cells and ends the episode |
 | **Reward** | +1 per burning cell put out, +10 for a hit (a release that lands on fire), −5 for a missed release, −10 for a crash, −0.002 per step, and a small penalty below 25% battery |
