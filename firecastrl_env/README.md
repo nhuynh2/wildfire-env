@@ -4,6 +4,19 @@ A drone firefighting environment, `firecastrl/Drone-env0`, built on top of [Fire
 
 For installation, the fire simulator, and the original helicopter environment, see the framework's [README](../README.md).
 
+## The task
+
+| | |
+| --- | --- |
+| **Actions** | `Discrete(5)`: 0 = +y, 1 = −y, 2 = −x, 3 = +x (each move is 3 cells), 4 = drop. Drop is masked in Task 1 |
+| **Observation** | `local`: 4×41×41 thermal view centered on the drone (burning, burnt, nonburnable, off-map); Task 1 sees the burning channel only. `position`: x, y scaled to 0–1 |
+| **Sensor** | Square view, 20 cells in each direction from the drone (41×41 cells) |
+| **Drop** | One payload. Released only if a burning cell is in view; otherwise nothing is released. Covers a 13-cell disk (radius 2 cells) and ends the episode |
+| **Reward: Task 1** | +10 on detection, +0.0005 per newly scanned cell, −0.01 per step |
+| **Reward: Task 2** | +1 per burning cell put out, +2 for a hit, −2 for a drop that hits no fire, +0.25 per cell moved closer to the nearest fire, −0.01 per step |
+| **Reward: full mission** | +1 per burning cell put out, +2 for a hit, −2 for a drop that hits no fire, −0.01 per step |
+| **Episode ends** | Task 1: fire enters view, or 150 steps. Task 2: drop released, or 50 steps. Full mission: drop released, fire out, or 2,000 steps |
+
 ## My files
 
 | File                                      | Purpose                                                                                                                |
