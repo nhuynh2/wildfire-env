@@ -132,41 +132,41 @@ def main():
     p.add_argument("--eval-episodes", type=int, default=30)
     args = p.parse_args()
 
-    # check_env(make_env().unwrapped, warn=False)
+    check_env(make_env().unwrapped, warn=False)
 
-    # LOG_DIR.mkdir(parents=True, exist_ok=True)
-    # env = make_vec_env(
-    #     make_env,
-    #     n_envs=args.n_envs,
-    #     vec_env_cls=SubprocVecEnv,
-    #     seed=args.seed,
-    #     monitor_dir=str(LOG_DIR),
-    # )
-    # model = MaskablePPO(
-    #     "MultiInputPolicy",
-    #     env,
-    #     policy_kwargs=dict(normalize_images=False),
-    #     tensorboard_log=str(TB_DIR),
-    #     n_steps=512,
-    #     batch_size=256,
-    #     verbose=1,
-    #     device=args.device,
-    #     seed=args.seed,
-    # )
-    # eval_env = make_vec_env(make_env, n_envs=1)
-    # eval_cb = DetectEvalCallback(
-    #     eval_env,
-    #     n_eval_episodes=args.eval_episodes,
-    #     eval_freq=max(1, args.eval_freq // args.n_envs),
-    #     deterministic=True,
-    #     log_path=str(LOG_DIR / "eval"),
-    #     best_model_save_path=str(MODEL_PATH.parent / "detect_best"),
-    #     verbose=1,
-    # )
-    # model.learn(total_timesteps=args.timesteps, tb_log_name="drone_detect", callback=eval_cb)
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    env = make_vec_env(
+        make_env,
+        n_envs=args.n_envs,
+        vec_env_cls=SubprocVecEnv,
+        seed=args.seed,
+        monitor_dir=str(LOG_DIR),
+    )
+    model = MaskablePPO(
+        "MultiInputPolicy",
+        env,
+        policy_kwargs=dict(normalize_images=False),
+        tensorboard_log=str(TB_DIR),
+        n_steps=512,
+        batch_size=256,
+        verbose=1,
+        device=args.device,
+        seed=args.seed,
+    )
+    eval_env = make_vec_env(make_env, n_envs=1)
+    eval_cb = DetectEvalCallback(
+        eval_env,
+        n_eval_episodes=args.eval_episodes,
+        eval_freq=max(1, args.eval_freq // args.n_envs),
+        deterministic=True,
+        log_path=str(LOG_DIR / "eval"),
+        best_model_save_path=str(MODEL_PATH.parent / "detect_best"),
+        verbose=1,
+    )
+    model.learn(total_timesteps=args.timesteps, tb_log_name="drone_detect", callback=eval_cb)
 
-    # MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
-    # model.save(MODEL_PATH)
+    MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
+    model.save(MODEL_PATH)
     loaded = MaskablePPO.load(MODEL_PATH, device=args.device)
     # evaluate(loaded, n_episodes=5, randomize_spawn=True)
     evaluate(loaded, n_episodes=1, randomize_spawn=False, base_coord=(15, 25))
