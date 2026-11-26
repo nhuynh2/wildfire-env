@@ -2,7 +2,7 @@
 
 A custom Gymnasium environment, `firecastrl/Drone-env0`, built on top of [FireCastRL](https://github.com/aisystems-lab/wildfire-env). The firefighting helicopter is replaced by a drone (Spider-i H300 class) with one retardant bomb, a limited battery, a base for refill and recharge, and a thermal IR camera that only sees fire close to the drone.
 
-The code is in the [`wildfire-env/`](wildfire-env/) folder, on the `custom-env` branch of [nhuynh2/wildfire-env](https://github.com/nhuynh2/wildfire-env/tree/custom-env). The original framework documentation is in [wildfire-env/README.md](wildfire-env/README.md).
+The code is in the [`wildfire-env/`](wildfire-env/) folder, on the `custom-env` branch of [nhuynh2/wildfire-env](https://github.com/nhuynh2/wildfire-env/tree/custom-env). The original framework documentation is in [wildfire-env/README.md](README.md).
 
 ## Requirements
 
